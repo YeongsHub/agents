@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        background: transparent;
+        overflow: visible;
+        user-select: none;
+        -webkit-app-region: drag;
+      }
+
+      .bar {
+        display: flex;
+        gap: 32px;
+        padding: 8px 18px;
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 20px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+      }
+
+      .panel {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 155px;
+        -webkit-app-region: no-drag;
+      }
+
+      .char-img {
+        width: 130px;
+        height: 130px;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+        -webkit-app-region: no-drag;
+        cursor: default;
+        transform-origin: bottom center;
+      }
+
+      /* 호버 시 컴퓨터 작업 모션 */
+      @keyframes doWork {
+        0%   { transform: translateY(0px)  rotate(0deg)    scale(1);    }
+        15%  { transform: translateY(-5px) rotate(-2deg)   scale(1.03); }
+        30%  { transform: translateY(-2px) rotate(1.2deg)  scale(1.01); }
+        48%  { transform: translateY(-6px) rotate(-1deg)   scale(1.04); }
+        64%  { transform: translateY(-1px) rotate(1.8deg)  scale(1.01); }
+        80%  { transform: translateY(-4px) rotate(-0.8deg) scale(1.02); }
+        100% { transform: translateY(0px)  rotate(0deg)    scale(1);    }
+      }
+
+      .panel.active .char-img {
+        animation: doWork 1.4s ease-in-out infinite;
+        filter: drop-shadow(0 6px 18px rgba(0,0,0,0.45));
+      }
+
+      /* 호버 존 — 에이전트가 없을 때 마우스 진입 감지용 */
+      .hover-zone {
+        width: 155px;
+        height: 36px;
+        cursor: default;
+        -webkit-app-region: no-drag;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .hover-zone-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: rgba(255,255,255,0.25);
+        transition: background 0.2s;
+      }
+      .panel.hovered .hover-zone-dot {
+        background: rgba(255,255,255,0.55);
+      }
+
+      /* 바 버튼 공통 */
+      .bar-btn {
+        position: absolute;
+        top: 6px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        color: white;
+        font-size: 12px;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        border: none;
+        z-index: 40;
+      }
+
+      .bar:hover .bar-btn { opacity: 1; }
+
+      .settings-btn {
+        right: 6px;
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.3) !important;
+      }
+
+      .close-btn {
+        right: 34px;
+        background: rgba(255, 95, 87, 0.7);
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .close-btn:hover { background: #ff3b30; }
+
+      .meeting-btn {
+        right: 62px;
+        background: rgba(99,102,241,0.55);
+        border: 1px solid rgba(99,102,241,0.5) !important;
+        font-size: 13px;
+      }
+      .meeting-btn:hover { background: rgba(99,102,241,0.85); }
+
+      /* 호버 카드 */
+      .hover-card {
+        position: absolute;
+        bottom: 130px;
+        left: 50%;
+        transform: translateX(-50%) translateY(6px);
+        background: rgba(18, 18, 22, 0.90);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,0.13);
+        border-radius: 14px;
+        padding: 10px 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        width: 214px;
+        opacity: 0;
+        transition: opacity 0.18s ease, transform 0.18s ease;
+        pointer-events: none;
+        z-index: 20;
+        -webkit-app-region: no-drag;
+      }
+      .hover-card.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+        pointer-events: auto;
+      }
+
+      .chat-divider  { width: 100%; height: 1px; background: rgba(255,255,255,0.08); margin: 2px 0; }
+      .chat-response {
+        display: none; width: 100%;
+        font-size: 11px; font-family: -apple-system, sans-serif;
+        color: rgba(255,255,255,0.78); line-height: 1.55;
+        word-break: keep-all; white-space: pre-wrap;
+        padding: 2px 0 4px;
+      }
+      .voice-status {
+        display: none;
+        font-size: 10px; font-family: -apple-system, sans-serif;
+        color: rgba(255,255,255,0.45);
+      }
+      .voice-status.active { display: block; }
+      .mic-btn {
+        width: 42px; height: 42px; border-radius: 50%;
+        background: rgba(255,255,255,0.08);
+        border: 1.5px solid rgba(255,255,255,0.15);
+        color: white; font-size: 20px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        -webkit-app-region: no-drag;
+        transition: all 0.15s;
+      }
+      .mic-btn:hover { background: rgba(255,255,255,0.14); }
+      .mic-btn.on {
+        background: rgba(255,59,48,0.28);
+        border-color: rgba(255,59,48,0.65);
+        box-shadow: 0 0 12px rgba(255,59,48,0.28);
+      }
+
+      .name-row { display: flex; align-items: center; gap: 6px; }
+
+      .status-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: #34c759;
+        flex-shrink: 0;
+        box-shadow: 0 0 5px rgba(52,199,89,0.7);
+        transition: background 0.3s, box-shadow 0.3s;
+      }
+      .status-dot.working {
+        background: #ff3b30;
+        box-shadow: 0 0 6px rgba(255,59,48,0.8);
+        animation: pulse 1s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.45; }
+      }
+
+      .hover-name  { font-size: 13px; font-family: -apple-system, sans-serif; color: rgba(255,255,255,0.95); font-weight: 700; letter-spacing: -0.3px; }
+      .hover-role  { font-size: 10px; font-family: -apple-system, sans-serif; color: rgba(255,255,255,0.45); letter-spacing: 0.2px; }
+      .status-label{ font-size: 10px; font-family: -apple-system, sans-serif; color: rgba(255,255,255,0.38); letter-spacing: 0.1px; }
+      /* 말풍선 */
+      .bubble {
+        display: none;
+        position: absolute;
+        bottom: 230px; left: 50%;
+        transform: translateX(-50%);
+        width: 190px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 12px; font-family: -apple-system, sans-serif; line-height: 1.5;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        color: #333;
+        z-index: 30;
+        -webkit-app-region: no-drag;
+        white-space: pre-wrap; word-break: keep-all;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar" id="bar">
+      <button class="bar-btn meeting-btn" id="meeting-btn" title="Meeting">💬</button>
+      <button class="bar-btn close-btn"   id="close-btn"   title="닫기">✕</button>
+      <button class="bar-btn settings-btn" id="settings-btn" title="설정">⚙</button>
+    </div>
+
+    <script>
+      const AGENTS = [
+        { id: "fox_plan_architect", name: "Foxy",  role: "News Anchor · Market Intelligence", imagePath: "../../assets/images/fox_developer.png" },
+        { id: "cat_marketer",       name: "Kitty", role: "Marketing Strategist · Growth Plan", imagePath: "../../assets/images/cat_marketer.png" },
+        { id: "rabbit_storyteller", name: "Bunny", role: "Budget Analyst · Cost Strategy",   imagePath: "../../assets/images/rabbit_accountant.png" },
+      ];
+
+      const panels = {};
+      const bar = document.getElementById("bar");
+      let currentGreetAudio = null; // 전역 인사 오디오 — 에이전트 간 겹침 방지
+
+      for (const agent of AGENTS) {
+        const panel  = document.createElement("div"); panel.className = "panel";
+        const bubble = document.createElement("div"); bubble.className = "bubble";
+        const imgEl  = document.createElement("img"); imgEl.className = "char-img"; imgEl.style.display = "none";
+
+        // 호버 카드
+        const hoverCard   = document.createElement("div"); hoverCard.className = "hover-card";
+        const nameRow     = document.createElement("div"); nameRow.className = "name-row";
+        const statusDot   = document.createElement("div"); statusDot.className = "status-dot";
+        const nameEl      = document.createElement("div"); nameEl.className = "hover-name"; nameEl.textContent = agent.name;
+        nameRow.append(statusDot, nameEl);
+        const roleEl      = document.createElement("div"); roleEl.className = "hover-role"; roleEl.textContent = agent.role;
+        const statusLabel = document.createElement("div"); statusLabel.className = "status-label"; statusLabel.textContent = "● Idle";
+
+        // 1대1 음성 대화
+        const chatDivider  = document.createElement("div");    chatDivider.className = "chat-divider";
+        const chatResponse = document.createElement("div");    chatResponse.className = "chat-response";
+        const voiceStatus  = document.createElement("div");    voiceStatus.className = "voice-status";
+        const micBtn       = document.createElement("button"); micBtn.className = "mic-btn"; micBtn.textContent = "🎙️";
+
+        hoverCard.append(nameRow, roleEl, statusLabel, chatDivider, chatResponse, voiceStatus, micBtn);
+
+        const hoverZone = document.createElement("div"); hoverZone.className = "hover-zone";
+        const hoverDot  = document.createElement("div"); hoverDot.className = "hover-zone-dot";
+        hoverZone.appendChild(hoverDot);
+
+        panel.append(bubble, hoverCard, imgEl, hoverZone);
+        bar.appendChild(panel);
+
+        // 마우스 위치로 hover 토글 + 인사 재생
+        let wasInside = false;
+        document.addEventListener("mousemove", ((p, hc, id) => (e) => {
+          const pr = p.getBoundingClientRect();
+          const cr = hc.getBoundingClientRect();
+
+          // 패널 전체 + 호버 카드 통합 영역
+          const inside =
+            e.clientX >= Math.min(pr.left, cr.left) &&
+            e.clientX <= Math.max(pr.right, cr.right) &&
+            e.clientY >= Math.min(pr.top, cr.top) &&
+            e.clientY <= Math.max(pr.bottom, cr.bottom);
+
+          const entering = inside && !wasInside;
+          const leaving  = !inside && wasInside;
+
+          p.classList.toggle("hovered", inside);
+          hc.classList.toggle("visible", inside);
+
+          if (leaving) {
+            if (currentGreetAudio) { currentGreetAudio.pause(); currentGreetAudio.currentTime = 0; currentGreetAudio = null; }
+            stopVoice();
+          }
+          wasInside = inside;
+        })(panel, hoverCard, agent.id));
+
+        function setWorking(isWorking) {
+          statusDot.classList.toggle("working", isWorking);
+          statusLabel.textContent = isWorking ? "● Working..." : "● Idle";
+        }
+
+        // ── VAD 음성 대화 ──────────────────────────────────
+        const SILENCE_THRESHOLD = 0.012;
+        const SILENCE_MS        = 1500;
+        const MIN_RECORD_MS     = 400;
+
+        let liveMode = false, micStream = null, audioCtx = null, analyserNode = null;
+        let vadBuf = null, recorder = null, micChunks = [], isCapturing = false;
+        let lastSpeech = 0, captureStart = 0, vadRafId = null, voiceBusy = false;
+        const barHistory = []; // 1:1 대화 히스토리
+        const BAR_MAX_HISTORY = 20;
+
+        const setVoiceStatus = (text) => {
+          voiceStatus.textContent = text;
+          voiceStatus.classList.toggle('active', !!text);
+        };
+
+        const getRMS = () => {
+          if (!analyserNode || !vadBuf) return 0;
+          analyserNode.getByteTimeDomainData(vadBuf);
+          let sum = 0;
+          for (let i = 0; i < vadBuf.length; i++) { const v = (vadBuf[i]-128)/128; sum += v*v; }
+          return Math.sqrt(sum / vadBuf.length);
+        };
+
+        const stopVoice = () => {
+          if (vadRafId) { cancelAnimationFrame(vadRafId); vadRafId = null; }
+          if (recorder && recorder.state === 'recording') recorder.stop();
+          micStream?.getTracks().forEach(t => t.stop());
+          audioCtx?.close();
+          audioCtx = null; analyserNode = null; micStream = null; vadBuf = null;
+          recorder = null; isCapturing = false; liveMode = false; voiceBusy = false;
+          micBtn.classList.remove('on'); micBtn.textContent = '🎙️';
+          setVoiceStatus('');
+        };
+
+        const startCapture = () => {
+          if (!micStream || isCapturing) return;
+          const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+          recorder = new MediaRecorder(micStream, { mimeType });
+          micChunks = []; captureStart = Date.now();
+          recorder.ondataavailable = e => { if (e.data.size > 0) micChunks.push(e.data); };
+          recorder.onstop = processVoice;
+          recorder.start(); isCapturing = true;
+          setVoiceStatus('🔴 Recording...');
+        };
+
+        const stopCapture = () => {
+          if (!isCapturing || !recorder || recorder.state !== 'recording') return;
+          isCapturing = false; recorder.stop();
+        };
+
+        const vadLoop = () => {
+          if (!liveMode) return;
+          const rms = getRMS(), now = Date.now();
+          if (rms > SILENCE_THRESHOLD) {
+            lastSpeech = now;
+            if (!isCapturing && !voiceBusy) startCapture();
+          } else if (isCapturing && (now - lastSpeech) >= SILENCE_MS) {
+            stopCapture(); return;
+          }
+          vadRafId = requestAnimationFrame(vadLoop);
+        };
+
+        const processVoice = async () => {
+          if ((Date.now() - captureStart) < MIN_RECORD_MS || micChunks.length === 0) {
+            if (liveMode) { setVoiceStatus('👂 Listening...'); vadRafId = requestAnimationFrame(vadLoop); }
+            return;
+          }
+          setVoiceStatus('⏳ Thinking...');
+          voiceBusy = true;
+          const blob = new Blob(micChunks, { type: recorder?.mimeType || 'audio/webm' });
+          const bytes = new Uint8Array(await blob.arrayBuffer());
+          let binary = '';
+          for (let i = 0; i < bytes.length; i += 8192)
+            binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+          try {
+            const text = await window.agent.transcribeAudio(btoa(binary));
+            if (text.trim()) {
+              setWorking(true);
+              chatResponse.style.display = 'block'; chatResponse.textContent = '...';
+              barHistory.push({ role: 'user', content: text.trim() });
+              if (barHistory.length > BAR_MAX_HISTORY) barHistory.shift();
+              const result = await window.agent.meetingMessage(agent.id, [...barHistory]);
+              if (result.text) { barHistory.push({ role: 'assistant', content: result.text }); if (barHistory.length > BAR_MAX_HISTORY) barHistory.shift(); }
+              chatResponse.textContent = result.text || '';
+              setWorking(false);
+              if (result.audioPath) {
+                setVoiceStatus('🔊 Speaking...');
+                const audio = new Audio(result.audioPath);
+                await new Promise(r => { audio.onended = r; audio.onerror = r; audio.play().catch(r); });
+              }
+            }
+          } catch { chatResponse.style.display = 'block'; chatResponse.textContent = '⚠ Error'; setWorking(false); }
+          voiceBusy = false;
+          if (liveMode) { setVoiceStatus('👂 Listening...'); lastSpeech = 0; vadRafId = requestAnimationFrame(vadLoop); }
+        };
+
+        const startVoice = async () => {
+          try {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+            audioCtx = new AudioContext();
+            analyserNode = audioCtx.createAnalyser(); analyserNode.fftSize = 512;
+            vadBuf = new Uint8Array(analyserNode.frequencyBinCount);
+            audioCtx.createMediaStreamSource(micStream).connect(analyserNode);
+            liveMode = true;
+            micBtn.classList.add('on'); micBtn.textContent = '🔴';
+            setVoiceStatus('👂 Listening...');
+            vadLoop();
+          } catch { setVoiceStatus('Mic denied'); setTimeout(() => setVoiceStatus(''), 2000); }
+        };
+
+        micBtn.addEventListener('click', () => { if (liveMode) stopVoice(); else startVoice(); });
+
+        imgEl.src = agent.imagePath;
+        imgEl.onload = () => { imgEl.style.display = "block"; };
+
+        // 클릭 시 인사 재생
+        imgEl.addEventListener("click", () => {
+          if (currentGreetAudio) { currentGreetAudio.pause(); currentGreetAudio.currentTime = 0; currentGreetAudio = null; }
+          window.agent.greetAgent(agent.id).then((audioPath) => {
+            currentGreetAudio = new Audio(audioPath);
+            currentGreetAudio.play().catch(() => {});
+          }).catch(() => {});
+        });
+
+        panels[agent.id] = { bubble, setWorking };
+      }
+
+      // 브리핑 수신
+      window.agent.onBriefing(({ agentId, text, audioPath }) => {
+        const p = panels[agentId];
+        if (!p) return;
+
+        p.setWorking(true);
+        p.bubble.textContent = text;
+        p.bubble.style.display = "block";
+
+        const audio = new Audio(audioPath);
+        audio.play();
+        audio.onended = () => {
+          p.setWorking(false);
+          setTimeout(() => { p.bubble.style.display = "none"; }, 2000);
+        };
+      });
+
+      document.getElementById("meeting-btn").addEventListener("click", () => window.agent.openMeeting());
+      document.getElementById("settings-btn").addEventListener("click", () => window.agent.openSettings());
+      document.getElementById("close-btn").addEventListener("click", () => window.agent.closeApp());
+    </script>
+  </body>
+</html>

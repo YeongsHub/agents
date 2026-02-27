@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        background: transparent;
+        overflow: hidden;
+        user-select: none;
+        -webkit-app-region: drag;
+      }
+
+      #character-img {
+        display: none;
+        width: 160px;
+        height: 160px;
+        object-fit: contain;
+        cursor: pointer;
+        -webkit-app-region: drag;
+        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+      }
+
+      #character-video {
+        display: none;
+        width: 160px;
+        height: 160px;
+        object-fit: cover;
+        border-radius: 50%;
+        cursor: pointer;
+        -webkit-app-region: drag;
+      }
+
+      #character-canvas {
+        display: none;
+        width: 160px;
+        height: 160px;
+        cursor: pointer;
+        -webkit-app-region: drag;
+      }
+
+      #bubble {
+        display: none;
+        position: absolute;
+        bottom: 180px;
+        left: 0;
+        width: 220px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 12px;
+        font-family: -apple-system, sans-serif;
+        line-height: 1.5;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        -webkit-app-region: no-drag;
+        color: #333;
+      }
+
+      #emoji-placeholder {
+        display: none;
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.15);
+        font-size: 80px;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        -webkit-app-region: drag;
+      }
+
+      #name {
+        text-align: center;
+        font-size: 12px;
+        font-family: -apple-system, sans-serif;
+        color: white;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        margin-top: 4px;
+        -webkit-app-region: drag;
+      }
+
+      #trigger-btn {
+        display: block;
+        margin: 4px auto 0;
+        padding: 2px 10px;
+        font-size: 11px;
+        background: rgba(255,255,255,0.3);
+        border: 1px solid rgba(255,255,255,0.5);
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="bubble"></div>
+    <img id="character-img" />
+    <video id="character-video" autoplay loop muted playsinline></video>
+    <canvas id="character-canvas"></canvas>
+    <div id="emoji-placeholder"></div>
+    <div id="name"></div>
+    <button id="trigger-btn">브리핑</button>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const agentId = params.get("agentId");
+      const imagePath = params.get("imagePath") || "";
+
+      const AGENTS = {
+        cat_marketer:    { name: "Kitty", imagePath: "../../assets/images/cat_marketer.png",     videoIdle: "../../assets/videos/cat_idle.mp4",    videoSpeak: "../../assets/videos/cat_speak.mp4" },
+        fox_plan_architect:   { name: "Foxy",  imagePath: "../../assets/images/fox_developer.png",    videoIdle: "../../assets/videos/fox_idle.mp4",    videoSpeak: "../../assets/videos/fox_speak.mp4" },
+        rabbit_storyteller:{ name: "Bunny", imagePath: "", videoIdle: "../../assets/images/rabbit_kling.mp4", videoSpeak: "../../assets/images/rabbit_kling.mp4", removeBackground: false },
+      };
+
+      const char = AGENTS[agentId] ?? {};
+      const imgEl    = document.getElementById("character-img");
+      const videoEl  = document.getElementById("character-video");
+      const canvasEl = document.getElementById("character-canvas");
+      const ctx      = canvasEl.getContext("2d", { willReadFrequently: true });
+      canvasEl.width  = 160;
+      canvasEl.height = 160;
+      const emojiEl = document.getElementById("emoji-placeholder");
+      const bubble  = document.getElementById("bubble");
+      const nameEl  = document.getElementById("name");
+      const btn     = document.getElementById("trigger-btn");
+
+      nameEl.textContent = char.name ?? agentId;
+
+      // 배경 제거 루프 - flood fill (외곽에서 연결된 밝은 픽셀만 제거)
+      const BG_W = 160, BG_H = 160, BG_T = 160;
+      let bgRafId = null;
+      function startBgRemoval() {
+        if (bgRafId) return;
+        function processFrame() {
+          if (videoEl.readyState >= 2) {
+            ctx.drawImage(videoEl, 0, 0, BG_W, BG_H);
+            const imgData = ctx.getImageData(0, 0, BG_W, BG_H);
+            const data    = imgData.data;
+            const visited = new Uint8Array(BG_W * BG_H);
+            const stack   = [];
+
+            function isBg(p) {
+              const i = p * 4;
+              const r = data[i], g = data[i+1], b = data[i+2];
+              // 밝고 + 완벽히 중립색(R≈G≈B)인 픽셀만 배경으로 판단
+              return r > BG_T && Math.abs(r-g) < 18 && Math.abs(r-b) < 18 && Math.abs(g-b) < 18;
+            }
+            function seed(p) {
+              if (!visited[p] && isBg(p)) { visited[p] = 1; stack.push(p); }
+            }
+
+            for (let x = 0; x < BG_W; x++) { seed(x); seed((BG_H-1)*BG_W + x); }
+            for (let y = 1; y < BG_H-1; y++) { seed(y*BG_W); seed(y*BG_W + BG_W-1); }
+
+            while (stack.length > 0) {
+              const p = stack.pop();
+              data[p*4 + 3] = 0;
+              const x = p % BG_W, y = (p / BG_W) | 0;
+              if (x > 0)      seed(p - 1);
+              if (x < BG_W-1) seed(p + 1);
+              if (y > 0)      seed(p - BG_W);
+              if (y < BG_H-1) seed(p + BG_W);
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+          }
+          bgRafId = requestAnimationFrame(processFrame);
+        }
+        bgRafId = requestAnimationFrame(processFrame);
+      }
+      function stopBgRemoval() {
+        if (bgRafId) { cancelAnimationFrame(bgRafId); bgRafId = null; }
+      }
+
+      // 이미지 → 비디오(or 캔버스) → 이모지 순서로 표시
+      function showEmoji() {
+        imgEl.style.display    = "none";
+        videoEl.style.display  = "none";
+        canvasEl.style.display = "none";
+        emojiEl.style.display  = "flex";
+        emojiEl.textContent    = char.emoji ?? "🤖";
+        stopBgRemoval();
+      }
+
+      function showImage() {
+        imgEl.style.display    = "block";
+        videoEl.style.display  = "none";
+        canvasEl.style.display = "none";
+        emojiEl.style.display  = "none";
+        stopBgRemoval();
+      }
+
+      function showVideo() {
+        imgEl.style.display   = "none";
+        emojiEl.style.display = "none";
+        if (char.removeBackground) {
+          videoEl.style.display  = "none";
+          canvasEl.style.display = "block";
+          startBgRemoval();
+        } else {
+          videoEl.style.display  = "block";
+          canvasEl.style.display = "none";
+          stopBgRemoval();
+        }
+      }
+
+      // PNG 이미지 우선, 없으면 비디오, 마지막은 이모지
+      const resolvedImagePath = imagePath || char.imagePath || "";
+      showEmoji();
+      if (resolvedImagePath) {
+        imgEl.src = resolvedImagePath;
+        imgEl.onload = () => showImage();
+        imgEl.onerror = () => {
+          if (char.videoIdle) {
+            videoEl.src = char.videoIdle;
+            videoEl.oncanplay = () => showVideo();
+          }
+        };
+      } else if (char.videoIdle) {
+        videoEl.src = char.videoIdle;
+        videoEl.oncanplay = () => showVideo();
+      }
+
+      // 브리핑 수신
+      window.agent.onBriefing(({ text, audioPath }) => {
+        // 말하는 영상으로 전환
+        if (char.videoSpeak) {
+          videoEl.src = char.videoSpeak;
+          showVideo();
+        }
+
+        // 말풍선 표시
+        bubble.textContent = text;
+        bubble.style.display = "block";
+
+        // 음성 재생
+        const audio = new Audio(audioPath);
+        audio.play();
+
+        // 음성 끝나면 원래 상태로
+        audio.onended = () => {
+          if (imagePath && imgEl.complete && imgEl.naturalWidth > 0) {
+            showImage();
+          } else if (char.videoIdle) {
+            videoEl.src = char.videoIdle;
+            showVideo();
+          }
+          setTimeout(() => { bubble.style.display = "none"; }, 2000);
+        };
+      });
+
+      // 수동 브리핑 버튼
+      btn.addEventListener("click", () => {
+        if (!window.agent) return;
+        window.agent.trigger(agentId).catch(console.error);
+      });
+    </script>
+  </body>
+</html>

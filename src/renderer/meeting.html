@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0f13;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; flex-direction: column;
+      height: 100vh; overflow: hidden; user-select: none;
+    }
+
+    /* ═══════════════════════════════════
+       INVITE SCREEN
+    ═══════════════════════════════════ */
+    #invite-screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      background: #0f0f13;
+      z-index: 50;
+    }
+    #invite-screen.hidden { display: none; }
+
+    #invite-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      -webkit-app-region: drag; flex-shrink: 0;
+    }
+    #invite-header-title {
+      font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85);
+    }
+    #invite-close {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(255,59,48,0.7); border: none; color: white;
+      font-size: 10px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-app-region: no-drag; transition: background 0.15s;
+    }
+    #invite-close:hover { background: #ff3b30; }
+
+    #invite-body {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 28px; padding: 24px 32px;
+    }
+
+    #invite-heading {
+      text-align: center;
+    }
+    #invite-heading h2 {
+      font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.92);
+      letter-spacing: -0.4px; margin-bottom: 6px;
+    }
+    #invite-heading p {
+      font-size: 12px; color: rgba(255,255,255,0.4);
+    }
+
+    #agent-cards {
+      display: flex; gap: 14px; flex-wrap: wrap; justify-content: center;
+    }
+
+    .agent-card {
+      width: 164px; padding: 22px 16px 18px;
+      border-radius: 18px;
+      border: 2px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      cursor: pointer; text-align: center;
+      transition: border-color 0.18s, background 0.18s, box-shadow 0.18s, transform 0.12s;
+      position: relative;
+    }
+    .agent-card:hover {
+      border-color: rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.07);
+      transform: translateY(-2px);
+    }
+    .agent-card.selected {
+      border-color: rgba(99,102,241,0.75);
+      background: rgba(99,102,241,0.1);
+      box-shadow: 0 0 24px rgba(99,102,241,0.22);
+    }
+
+    /* Check badge */
+    .card-check {
+      position: absolute; top: 10px; right: 10px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      border: 1.5px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; transition: all 0.15s;
+    }
+    .agent-card.selected .card-check {
+      background: #6366f1; border-color: #6366f1; color: white;
+    }
+    .agent-card.selected .card-check::after { content: '✓'; }
+
+    .card-avatar {
+      width: 68px; height: 68px; border-radius: 50%;
+      margin: 0 auto 12px; overflow: hidden;
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      transition: border-color 0.18s;
+    }
+    .agent-card.selected .card-avatar {
+      border-color: rgba(99,102,241,0.5);
+    }
+    .card-avatar img { width: 100%; height: 100%; object-fit: contain; }
+
+    .card-name {
+      font-size: 13px; font-weight: 700;
+      color: rgba(255,255,255,0.9); margin-bottom: 4px;
+    }
+    .card-desc {
+      font-size: 10px; color: rgba(255,255,255,0.38);
+      line-height: 1.4;
+    }
+
+    #start-btn {
+      width: 100%; max-width: 340px;
+      padding: 13px 0; border-radius: 12px;
+      background: #6366f1; border: none;
+      color: white; font-size: 13px; font-weight: 600;
+      cursor: pointer; -webkit-app-region: no-drag;
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+    }
+    #start-btn:hover:not(:disabled) { background: #4f52e0; transform: scale(1.02); }
+    #start-btn:disabled { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.25); cursor: not-allowed; }
+    #start-btn .btn-count { opacity: 0.7; font-weight: 400; }
+
+    /* ═══════════════════════════════════
+       MEETING ROOM
+    ═══════════════════════════════════ */
+    #meeting-screen {
+      display: none; flex-direction: column; height: 100vh;
+    }
+    #meeting-screen.visible { display: flex; }
+
+    /* Header */
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 18px;
+      background: #1a1a1e;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      -webkit-app-region: drag; flex-shrink: 0;
+    }
+    #header-left { display: flex; align-items: center; gap: 10px; }
+    #meeting-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.88); }
+    #timer { font-size: 11px; color: rgba(255,255,255,0.38); font-variant-numeric: tabular-nums; }
+    #end-btn {
+      background: rgba(197,15,31,0.85); border: none; border-radius: 6px;
+      color: white; padding: 6px 18px; font-size: 12px; font-weight: 600;
+      cursor: pointer; -webkit-app-region: no-drag; transition: background 0.15s;
+    }
+    #end-btn:hover { background: #c50f1f; }
+
+    /* Scene */
+    #scene { flex: 1; position: relative; overflow: hidden; }
+
+    /* Self-view camera */
+    #self-view {
+      display: none;
+      position: absolute; bottom: 12px; right: 14px;
+      width: 130px; height: 98px;
+      border-radius: 10px; overflow: hidden;
+      border: 2px solid rgba(99,102,241,0.5);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      z-index: 10; background: #111;
+    }
+    #self-view.visible { display: block; }
+    #self-view video {
+      width: 100%; height: 100%;
+      object-fit: cover; transform: scaleX(-1);
+    }
+    #self-view-label {
+      position: absolute; bottom: 4px; left: 6px;
+      font-size: 9px; color: rgba(255,255,255,0.55);
+      background: rgba(0,0,0,0.45); padding: 1px 5px; border-radius: 4px;
+    }
+
+    /* ── Meeting Room Scene ── */
+    #room-bg {
+      position: absolute; inset: 0; overflow: hidden;
+      background: #1a1a1e;
+    }
+    #room-bg img {
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: center bottom;
+      display: block;
+    }
+
+    #conf-table {
+      position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 90%; height: 32%;
+      background: linear-gradient(170deg,
+        rgba(180,220,255,0.18) 0%,
+        rgba(140,190,255,0.12) 40%,
+        rgba(100,160,240,0.08) 100%);
+      border-radius: 50% 50% 0 0 / 28px 28px 0 0;
+      border-top: 1.5px solid rgba(255,255,255,0.35);
+      border-left: 1px solid rgba(255,255,255,0.15);
+      border-right: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(18px) saturate(1.4);
+      -webkit-backdrop-filter: blur(18px) saturate(1.4);
+      box-shadow: 0 -4px 0 rgba(255,255,255,0.12),
+                  inset 0 6px 40px rgba(255,255,255,0.08),
+                  0 -30px 80px rgba(0,0,0,0.3);
+    }
+    #conf-table::before {
+      content: ''; position: absolute; top: 5px; left: 10%; right: 10%; height: 14px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+      border-radius: 50%;
+    }
+
+    /* Agent seats */
+    #agents-row {
+      position: absolute; bottom: calc(28% - 46px); left: 0; right: 0;
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 0; padding: 0 48px; z-index: 5;
+    }
+
+    .agent-seat {
+      display: flex; flex-direction: column; align-items: center;
+      position: relative; flex: 1;
+    }
+
+    .seat-bubble {
+      display: none;
+      position: absolute; bottom: calc(100% + 12px); left: 50%;
+      transform: translateX(-50%);
+      width: 180px;
+      background: rgba(255,255,255,0.97); color: #1a1a1a;
+      font-size: 10.5px; line-height: 1.6;
+      padding: 9px 12px; border-radius: 13px;
+      word-break: keep-all; white-space: pre-wrap; z-index: 20;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+      animation: bubbleIn 0.2s ease;
+    }
+    .seat-bubble::after {
+      content: ''; position: absolute; bottom: -8px; left: 50%;
+      transform: translateX(-50%);
+      border-left: 8px solid transparent; border-right: 8px solid transparent;
+      border-top: 8px solid rgba(255,255,255,0.97);
+    }
+
+    .seat-thinking {
+      display: none;
+      position: absolute; bottom: calc(100% + 10px); left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px; letter-spacing: 3px; z-index: 20;
+      animation: blink 0.6s ease-in-out infinite; white-space: nowrap;
+    }
+
+    .seat-char {
+      height: 138px; width: auto; object-fit: contain;
+      filter: drop-shadow(0 10px 24px rgba(0,0,0,0.75));
+    }
+
+    .agent-seat.thinking .seat-thinking { display: block; }
+    .agent-seat.speaking .seat-bubble   { display: block; }
+    .agent-seat.speaking .seat-thinking { display: none; }
+    .agent-seat.speaking .seat-char {
+      animation: talkBounce 0.42s ease-in-out infinite;
+      filter: drop-shadow(0 0 20px rgba(120,140,255,0.6)) drop-shadow(0 10px 24px rgba(0,0,0,0.75));
+    }
+
+    .seat-name {
+      font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.7);
+      margin-top: 6px;
+      background: rgba(0,0,0,0.55); padding: 2px 10px; border-radius: 5px;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Transcript bar */
+    #transcript-bar {
+      min-height: 26px; padding: 4px 18px;
+      background: rgba(99,102,241,0.07);
+      font-size: 11px; color: rgba(255,255,255,0.35);
+      display: flex; align-items: center; gap: 6px;
+      flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    #transcript-bar.active { color: rgba(255,255,255,0.78); }
+    #transcript-text { flex: 1; }
+
+    /* Input area */
+    #input-area {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      background: #1a1a1e;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0; -webkit-app-region: no-drag;
+    }
+    #msg-input {
+      flex: 1;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px; color: white;
+      font-size: 12px; font-family: inherit;
+      padding: 7px 14px; outline: none;
+      transition: border-color 0.15s;
+    }
+    #msg-input::placeholder { color: rgba(255,255,255,0.22); }
+    #msg-input:focus { border-color: rgba(99,102,241,0.55); }
+    #send-btn {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #6264a7; border: none; color: white;
+      font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background 0.15s;
+    }
+    #send-btn:hover { background: #4f52a0; }
+    #send-btn:disabled { background: rgba(255,255,255,0.07); cursor: not-allowed; }
+
+    /* Toolbar */
+    #toolbar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 8px 20px 12px;
+      background: #111114; flex-shrink: 0; -webkit-app-region: no-drag;
+    }
+    .tool-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 10px; color: rgba(255,255,255,0.8);
+      padding: 7px 14px; cursor: pointer; font-size: 10px; font-family: inherit;
+      transition: background 0.15s, transform 0.1s; min-width: 58px;
+    }
+    .tool-btn:hover { background: rgba(255,255,255,0.12); transform: scale(1.05); }
+    .tool-btn.on { background: rgba(99,102,241,0.35); border-color: rgba(99,102,241,0.5); }
+    .tool-icon { font-size: 19px; line-height: 1; }
+
+    /* Animations */
+    @keyframes talkBounce {
+      0%,100% { transform: scale(1) translateY(0); }
+      50%      { transform: scale(1.04) translateY(-6px); }
+    }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.1; } }
+    @keyframes bubbleIn {
+      from { opacity:0; transform: translateX(-50%) translateY(6px) scale(0.9); }
+      to   { opacity:1; transform: translateX(-50%) translateY(0) scale(1); }
+    }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  </style>
+</head>
+<body>
+
+  <!-- ── INVITE SCREEN ── -->
+  <div id="invite-screen">
+    <div id="invite-header">
+      <span id="invite-header-title">🎙️ New Meeting</span>
+      <button id="invite-close">✕</button>
+    </div>
+    <div id="invite-body">
+      <div id="invite-heading">
+        <h2>Who do you want to meet with?</h2>
+        <p>Select one or more agents to join your meeting</p>
+      </div>
+      <div id="agent-cards">
+        <!-- populated by JS -->
+      </div>
+      <button id="start-btn" disabled>
+        Start Meeting <span class="btn-count" id="btn-count"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── MEETING ROOM ── -->
+  <div id="meeting-screen">
+    <div id="header">
+      <div id="header-left">
+        <span id="meeting-title">🎙️ Meeting</span>
+        <span id="timer">00:00</span>
+      </div>
+      <button id="end-btn">End Call</button>
+    </div>
+
+    <div id="scene">
+      <div id="room-bg">
+        <img src="../../assets/images/meeting_room.png" alt="meeting room" />
+      </div>
+      <div id="conf-table"></div>
+      <div id="agents-row"></div>
+      <div id="self-view">
+        <video id="cam-video" autoplay muted playsinline></video>
+        <div id="self-view-label">You</div>
+      </div>
+    </div>
+
+    <div id="transcript-bar">
+      <span>🎤</span>
+      <span id="transcript-text">Ask your team something...</span>
+    </div>
+
+    <div id="input-area">
+      <input id="msg-input" type="text" placeholder="Message the meeting..." />
+      <button id="send-btn" disabled>↑</button>
+    </div>
+
+    <div id="toolbar">
+      <button class="tool-btn" id="mic-btn">
+        <span class="tool-icon">🎙️</span><span>Mic</span>
+      </button>
+      <button class="tool-btn" id="cam-btn">
+        <span class="tool-icon">📷</span><span>Camera</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ── Invite screen ──────────────────────────────────────
+    const agentCardsEl = document.getElementById('agent-cards');
+    const startBtn     = document.getElementById('start-btn');
+    const btnCount     = document.getElementById('btn-count');
+
+    let allAgents = [];
+    let selected  = new Set();
+
+    window.agent.getAgents().then(agents => {
+      allAgents = agents;
+
+      agents.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'agent-card';
+        card.dataset.id = a.id;
+
+        const check = document.createElement('div'); check.className = 'card-check';
+        const avatar = document.createElement('div'); avatar.className = 'card-avatar';
+        const name   = document.createElement('div'); name.className = 'card-name'; name.textContent = a.name;
+        const desc   = document.createElement('div'); desc.className = 'card-desc'; desc.textContent = a.description;
+
+        if (a.imageIdle) {
+          const img = document.createElement('img');
+          img.src = `../../${a.imageIdle}`;
+          img.onerror = () => { avatar.textContent = '🤖'; };
+          avatar.appendChild(img);
+        } else {
+          avatar.textContent = '🤖';
+        }
+
+        card.append(check, avatar, name, desc);
+        agentCardsEl.appendChild(card);
+
+        card.addEventListener('click', () => {
+          if (selected.has(a.id)) {
+            selected.delete(a.id);
+            card.classList.remove('selected');
+          } else {
+            selected.add(a.id);
+            card.classList.add('selected');
+          }
+          updateStartBtn();
+        });
+      });
+    });
+
+    function updateStartBtn() {
+      const n = selected.size;
+      startBtn.disabled = n === 0;
+      btnCount.textContent = n > 0 ? `(${n})` : '';
+    }
+
+    document.getElementById('invite-close').addEventListener('click', () => {
+      window.agent.closeMeeting();
+    });
+
+    startBtn.addEventListener('click', () => {
+      if (selected.size === 0) return;
+      launchMeeting([...selected]);
+    });
+
+    // ── Meeting room ───────────────────────────────────────
+    const agentsRow     = document.getElementById('agents-row');
+    const msgInput      = document.getElementById('msg-input');
+    const sendBtn       = document.getElementById('send-btn');
+    const micBtn        = document.getElementById('mic-btn');
+    const transcriptBar  = document.getElementById('transcript-bar');
+    const transcriptText = document.getElementById('transcript-text');
+    const timerEl       = document.getElementById('timer');
+
+    const seats = {};
+    let agentOrder = [];
+    let busy = false;
+    const agentHistories = {}; // agentId → [{role, content}]
+    const MAX_HISTORY = 20;    // 메시지 최대 보관 수 (token 절약)
+
+    function launchMeeting(selectedIds) {
+      // Transition: hide invite, show meeting
+      document.getElementById('invite-screen').classList.add('hidden');
+      const meetingScreen = document.getElementById('meeting-screen');
+      meetingScreen.classList.add('visible');
+      meetingScreen.style.animation = 'fadeIn 0.25s ease';
+
+      // Build meeting title
+      const names = allAgents.filter(a => selectedIds.includes(a.id)).map(a => a.name);
+      document.getElementById('meeting-title').textContent =
+        `🎙️ ${names.join(', ')}`;
+
+      agentOrder = selectedIds;
+
+      // Build agent seats
+      selectedIds.forEach(id => {
+        const a = allAgents.find(x => x.id === id);
+        if (!a) return;
+
+        const seat     = document.createElement('div'); seat.className = 'agent-seat';
+        const bubble   = document.createElement('div'); bubble.className = 'seat-bubble';
+        const thinking = document.createElement('div'); thinking.className = 'seat-thinking'; thinking.textContent = '● ● ●';
+        const charImg  = document.createElement('img'); charImg.className = 'seat-char';
+        const nameEl   = document.createElement('div'); nameEl.className = 'seat-name'; nameEl.textContent = a.name;
+
+        charImg.src = `../../${a.imageIdle}`;
+        charImg.onerror = () => {
+          charImg.style.display = 'none';
+          const em = document.createElement('div');
+          em.style.cssText = 'font-size:76px;line-height:1;filter:drop-shadow(0 10px 24px rgba(0,0,0,0.75));margin-bottom:6px';
+          em.textContent = '🤖';
+          seat.insertBefore(em, nameEl);
+        };
+
+        seat.append(bubble, thinking, charImg, nameEl);
+        agentsRow.appendChild(seat);
+        seats[id] = { seat, bubble, thinking, charImg, nameEl, name: a.name };
+      });
+
+      // Start timer
+      let seconds = 0;
+      setInterval(() => {
+        seconds++;
+        timerEl.textContent =
+          String(Math.floor(seconds / 60)).padStart(2, '0') + ':' +
+          String(seconds % 60).padStart(2, '0');
+      }, 1000);
+
+      sendBtn.disabled = false;
+      msgInput.focus();
+    }
+
+    // ── Input ──
+    msgInput.addEventListener('input', () => {
+      sendBtn.disabled = busy || !msgInput.value.trim();
+    });
+    msgInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !sendBtn.disabled) send(msgInput.value.trim());
+    });
+    sendBtn.addEventListener('click', () => {
+      if (!sendBtn.disabled) send(msgInput.value.trim());
+    });
+
+    // ── Send to selected agents ──
+    async function send(text) {
+      if (busy || !text.trim()) return;
+      busy = true;
+      lastMsg = text;
+      msgInput.value = '';
+      sendBtn.disabled = true;
+
+      transcriptText.textContent = `You: "${text}"`;
+      transcriptBar.classList.add('active');
+
+      // 이름이 언급된 에이전트만 응답, 없으면 전체 각자 독립 응답
+      // STT 오인식 alias 포함 (e.g. Whisper가 "Bunny"→"Bonnie"로 인식하는 경우)
+      const ALIASES = {
+        fox_plan_architect:  ["foxy", "fox", "oxy"],
+        cat_marketer:        ["kitty", "cat"],
+        rabbit_storyteller:  ["bunny", "banny", "bonnie", "bonny", "rabbit"],
+      };
+      const targeted = agentOrder.filter(id => {
+        const aliases = ALIASES[id] ?? [];
+        return aliases.some(a => new RegExp(`\\b${a}\\b`, 'i').test(text));
+      });
+      const respondingIds = targeted.length > 0 ? targeted : agentOrder;
+
+      respondingIds.forEach(id => seats[id]?.seat.classList.add('thinking'));
+
+      for (const id of respondingIds) {
+        const s = seats[id];
+
+        // 히스토리에 유저 메시지 추가
+        if (!agentHistories[id]) agentHistories[id] = [];
+        agentHistories[id].push({ role: 'user', content: text });
+        if (agentHistories[id].length > MAX_HISTORY) agentHistories[id].shift();
+
+        let r;
+        try {
+          r = await window.agent.meetingMessage(id, agentHistories[id]);
+        } catch {
+          r = { text: null, audioPath: null };
+        }
+
+        s.seat.classList.remove('thinking');
+        if (!r?.text) continue;
+
+        // 히스토리에 에이전트 응답 추가
+        agentHistories[id].push({ role: 'assistant', content: r.text });
+        if (agentHistories[id].length > MAX_HISTORY) agentHistories[id].shift();
+
+        s.bubble.textContent = r.text;
+        s.seat.classList.add('speaking');
+        transcriptText.textContent = `${s.name}: "${r.text}"`;
+
+        await playAudio(r.audioPath);
+
+        s.seat.classList.remove('speaking');
+        await sleep(350);
+      }
+
+      transcriptBar.classList.remove('active');
+      transcriptText.textContent = 'Ask your team something...';
+      busy = false;
+      sendBtn.disabled = !msgInput.value.trim();
+    }
+
+    let lastMsg = '';
+
+    function playAudio(audioPath) {
+      return new Promise(resolve => {
+        if (!audioPath) { resolve(); return; }
+        const audio = new Audio(audioPath);
+        audio.onended = resolve;
+        audio.onerror = resolve;
+        audio.play().catch(resolve);
+        setTimeout(resolve, 30000);
+      });
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // ── Live Conversation Mode (VAD) ──
+    const SILENCE_THRESHOLD = 0.012;   // RMS level to detect speech
+    const SILENCE_MS        = 1500;    // ms of silence before auto-stop
+    const MIN_RECORD_MS     = 400;     // ignore clips shorter than this
+
+    let liveMode     = false;
+    let micStream    = null;
+    let audioCtx     = null;
+    let analyser     = null;
+    let vadBuffer    = null;
+    let recorder     = null;
+    let micChunks    = [];
+    let isCapturing  = false;
+    let lastSpeech   = 0;
+    let captureStart = 0;
+    let vadRafId     = null;
+
+    function setLiveState(on) {
+      liveMode = on;
+      micBtn.classList.toggle('on', on);
+      micBtn.querySelector('.tool-icon').textContent = on ? '🔴' : '🎙️';
+      micBtn.querySelector('span:last-child').textContent = on ? 'Live' : 'Mic';
+    }
+
+    function getRMS() {
+      if (!analyser || !vadBuffer) return 0;
+      analyser.getByteTimeDomainData(vadBuffer);
+      let sum = 0;
+      for (let i = 0; i < vadBuffer.length; i++) {
+        const v = (vadBuffer[i] - 128) / 128;
+        sum += v * v;
+      }
+      return Math.sqrt(sum / vadBuffer.length);
+    }
+
+    async function startLiveMode() {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        });
+        audioCtx  = new AudioContext();
+        analyser  = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        vadBuffer = new Uint8Array(analyser.frequencyBinCount);
+        audioCtx.createMediaStreamSource(micStream).connect(analyser);
+        setLiveState(true);
+        transcriptText.textContent = '👂 Listening...';
+        transcriptBar.classList.add('active');
+        vadLoop();
+      } catch (err) {
+        console.error('[mic]', err);
+        transcriptText.textContent = 'Microphone access denied';
+        transcriptBar.classList.add('active');
+        setTimeout(() => {
+          transcriptBar.classList.remove('active');
+          transcriptText.textContent = 'Ask your team something...';
+        }, 2500);
+      }
+    }
+
+    function stopLiveMode() {
+      if (vadRafId) { cancelAnimationFrame(vadRafId); vadRafId = null; }
+      if (recorder && recorder.state === 'recording') recorder.stop();
+      micStream?.getTracks().forEach(t => t.stop());
+      audioCtx?.close();
+      audioCtx = null; analyser = null; micStream = null; vadBuffer = null;
+      recorder = null; isCapturing = false;
+      setLiveState(false);
+      transcriptBar.classList.remove('active');
+      transcriptText.textContent = 'Ask your team something...';
+    }
+
+    function vadLoop() {
+      if (!liveMode) return;
+      const rms     = getRMS();
+      const speaking = rms > SILENCE_THRESHOLD;
+      const now      = Date.now();
+
+      if (speaking) {
+        lastSpeech = now;
+        if (!isCapturing && !busy) startCapture();
+      } else if (isCapturing && (now - lastSpeech) >= SILENCE_MS) {
+        stopCapture();
+        return; // don't schedule next frame — will resume after transcription
+      }
+
+      vadRafId = requestAnimationFrame(vadLoop);
+    }
+
+    function startCapture() {
+      if (!micStream || isCapturing) return;
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus' : 'audio/webm';
+      recorder    = new MediaRecorder(micStream, { mimeType });
+      micChunks   = [];
+      captureStart = Date.now();
+
+      recorder.ondataavailable = e => { if (e.data.size > 0) micChunks.push(e.data); };
+      recorder.onstop = processRecording;
+      recorder.start();
+      isCapturing = true;
+      transcriptText.textContent = '🔴 Speaking...';
+    }
+
+    function stopCapture() {
+      if (!isCapturing || !recorder || recorder.state !== 'recording') return;
+      isCapturing = false;
+      recorder.stop();
+    }
+
+    async function processRecording() {
+      const duration = Date.now() - captureStart;
+      if (duration < MIN_RECORD_MS || micChunks.length === 0) {
+        // Too short — resume listening
+        if (liveMode && !busy) { transcriptText.textContent = '👂 Listening...'; vadRafId = requestAnimationFrame(vadLoop); }
+        return;
+      }
+
+      const mimeType    = recorder?.mimeType || 'audio/webm';
+      const blob        = new Blob(micChunks, { type: mimeType });
+      const arrayBuffer = await blob.arrayBuffer();
+      // Convert to base64 in chunks to avoid stack overflow on large buffers
+      const bytes  = new Uint8Array(arrayBuffer);
+      let binary   = '';
+      const chunk  = 8192;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+      }
+      const base64 = btoa(binary);
+
+      transcriptText.textContent = '⏳ Transcribing...';
+
+      try {
+        const text = await window.agent.transcribeAudio(base64);
+        if (text.trim() && !busy) {
+          await send(text.trim());
+        }
+      } catch (err) {
+        console.error('[transcribe]', err);
+      }
+
+      // Resume VAD loop after done
+      if (liveMode) {
+        transcriptText.textContent = '👂 Listening...';
+        lastSpeech = 0;
+        vadRafId = requestAnimationFrame(vadLoop);
+      }
+    }
+
+    micBtn.addEventListener('click', () => {
+      if (liveMode) {
+        stopLiveMode();
+      } else {
+        startLiveMode();
+      }
+    });
+
+    // ── Camera ──
+    const camBtn    = document.getElementById('cam-btn');
+    const selfView  = document.getElementById('self-view');
+    const camVideo  = document.getElementById('cam-video');
+    let camStream   = null;
+    let camOn       = false;
+
+    camBtn.addEventListener('click', async () => {
+      if (camOn) {
+        camStream?.getTracks().forEach(t => t.stop());
+        camVideo.srcObject = null;
+        camStream = null;
+        camOn = false;
+        camBtn.classList.remove('on');
+        camBtn.querySelector('.tool-icon').textContent = '📷';
+        selfView.classList.remove('visible');
+      } else {
+        try {
+          camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          camVideo.srcObject = camStream;
+          camOn = true;
+          camBtn.classList.add('on');
+          camBtn.querySelector('.tool-icon').textContent = '🟢';
+          selfView.classList.add('visible');
+        } catch (err) {
+          console.error('[camera]', err);
+        }
+      }
+    });
+
+    // ── End call ──
+    document.getElementById('end-btn').addEventListener('click', () => {
+      camStream?.getTracks().forEach(t => t.stop());
+      window.agent.closeMeeting();
+    });
+  </script>
+</body>
+</html>

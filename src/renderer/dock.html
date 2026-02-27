@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: transparent;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      -webkit-app-region: drag;
+    }
+
+    #dock {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-bottom: none;
+      border-radius: 20px 20px 0 0;
+      box-shadow:
+        0 -2px 24px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      -webkit-app-region: drag;
+      position: relative;
+      width: 100%;
+    }
+
+    /* ── 캐릭터 열 ── */
+    #chars-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 16px;
+      padding: 12px 28px 8px;
+    }
+
+    /* ── 미팅 런처 열 ── */
+    #meet-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px 14px;
+      border-top: 1px solid rgba(255,255,255,0.18);
+      -webkit-app-region: no-drag;
+    }
+
+    .meet-btn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 22px;
+      background: linear-gradient(135deg, #0a84ff, #0060df);
+      border: none;
+      border-radius: 20px;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,122,255,0.45);
+      transition: transform 0.15s, box-shadow 0.15s;
+      -webkit-app-region: no-drag;
+    }
+    .meet-btn:hover {
+      transform: translateY(-2px) scale(1.04);
+      box-shadow: 0 6px 20px rgba(0,122,255,0.6);
+    }
+    .meet-btn .meet-icon { font-size: 15px; }
+
+    /* ── 초대 오버레이 ── */
+    #invite-overlay {
+      display: none;
+      position: fixed;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 260px;
+      background: rgba(24, 24, 28, 0.95);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      z-index: 1000;
+      animation: popIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
+      -webkit-app-region: no-drag;
+    }
+    #invite-overlay.open { display: block; }
+
+    #invite-overlay h3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.55);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .invite-agent {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.12s;
+      margin-bottom: 4px;
+      -webkit-app-region: no-drag;
+    }
+    .invite-agent:hover { background: rgba(255,255,255,0.07); }
+    .invite-agent.checked { background: rgba(0,122,255,0.15); }
+
+    .invite-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.08);
+      border: 1.5px solid rgba(255,255,255,0.15);
+    }
+    .invite-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .invite-name {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.88);
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .invite-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, border-color 0.12s;
+      flex-shrink: 0;
+    }
+    .invite-agent.checked .invite-check {
+      background: #0a84ff;
+      border-color: #0a84ff;
+    }
+    .invite-check::after {
+      content: '';
+      display: none;
+      width: 5px;
+      height: 9px;
+      border-right: 2px solid white;
+      border-bottom: 2px solid white;
+      transform: rotate(45deg) translate(-1px, -1px);
+    }
+    .invite-agent.checked .invite-check::after { display: block; }
+
+    #start-meeting-btn {
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, #30d158, #25a244);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.12s;
+      box-shadow: 0 4px 12px rgba(48,209,88,0.4);
+    }
+    #start-meeting-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(48,209,88,0.55);
+    }
+    #start-meeting-btn:disabled {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.3);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    .char-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+      position: relative;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .char-wrap:hover {
+      transform: translateY(-14px) scale(1.15);
+    }
+
+    .char-img {
+      height: 100px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25));
+      transform-origin: bottom center;
+      transition: filter 0.2s ease;
+    }
+
+    .char-wrap:hover .char-img {
+      animation: typing 0.35s steps(1, end) infinite !important;
+      filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.35));
+    }
+
+    /* 키보드 타이핑 모션 - 빠른 상하 스텝 + 미세 틸트 */
+    @keyframes typing {
+      0%   { transform: translateY(0px)   translateX(0px)  rotate(0deg); }
+      10%  { transform: translateY(-4px)  translateX(-1px) rotate(-2deg); }
+      20%  { transform: translateY(-1px)  translateX(1px)  rotate(1deg); }
+      30%  { transform: translateY(-5px)  translateX(-2px) rotate(-1.5deg); }
+      40%  { transform: translateY(-2px)  translateX(2px)  rotate(1.5deg); }
+      50%  { transform: translateY(-4px)  translateX(-1px) rotate(-2deg); }
+      60%  { transform: translateY(0px)   translateX(1px)  rotate(0deg); }
+      70%  { transform: translateY(-3px)  translateX(-2px) rotate(2deg); }
+      80%  { transform: translateY(-5px)  translateX(1px)  rotate(-1deg); }
+      90%  { transform: translateY(-1px)  translateX(-1px) rotate(1deg); }
+      100% { transform: translateY(0px)   translateX(0px)  rotate(0deg); }
+    }
+
+    .char-img.speaking {
+      animation: speaking 0.6s ease-in-out infinite !important;
+      filter: drop-shadow(0 0 14px rgba(100, 180, 255, 0.8)) drop-shadow(0 6px 12px rgba(0,0,0,0.25));
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff3b30;
+      margin-top: 6px;
+      box-shadow: 0 0 6px rgba(255, 59, 48, 0.7);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .status-dot.active {
+      background: #007aff;
+      box-shadow: 0 0 8px rgba(0, 122, 255, 0.85);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(0, 122, 255, 0.7); }
+      50%       { box-shadow: 0 0 14px rgba(0, 122, 255, 1); }
+    }
+
+    .tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 14px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160px;
+      background: rgba(20, 20, 24, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 11px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+      color: rgba(255,255,255,0.9);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+      z-index: 999;
+      pointer-events: none;
+      animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      bottom: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 7px solid rgba(20, 20, 24, 0.92);
+    }
+
+    .tooltip-name { font-weight: 700; font-size: 12px; margin-bottom: 3px; }
+    .tooltip-desc { color: rgba(255,255,255,0.55); font-size: 10.5px; margin-bottom: 6px; }
+    .tooltip-status { display: flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; }
+    .tooltip-dot { width: 6px; height: 6px; border-radius: 50%; background: #ff3b30; flex-shrink: 0; }
+    .tooltip-dot.active { background: #007aff; }
+
+    .char-wrap:hover .tooltip { display: block; }
+
+    .bubble {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 12px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 14px;
+      padding: 10px 13px;
+      font-size: 11.5px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.55;
+      color: #222;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 999;
+      word-break: keep-all;
+      white-space: pre-wrap;
+      animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 8px solid rgba(255, 255, 255, 0.96);
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: translateX(-50%) scale(0.85) translateY(6px); }
+      to   { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+    }
+
+    .settings-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+      font-size: 16px;
+      -webkit-app-region: no-drag;
+      transition: background 0.15s, transform 0.15s;
+      flex-shrink: 0;
+      align-self: center;
+      margin-bottom: 14px;
+    }
+    .settings-btn:hover {
+      background: rgba(255,255,255,0.22);
+      transform: rotate(30deg) scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="dock">
+    <div id="invite-overlay">
+      <h3>Invite to Meeting</h3>
+      <div id="invite-list"></div>
+      <button id="start-meeting-btn" disabled>Start Meeting</button>
+    </div>
+    <div id="chars-row">
+      <button class="settings-btn" id="settingsBtn" title="설정">⚙️</button>
+    </div>
+    <div id="meet-row">
+      <button class="meet-btn" id="meetBtn">
+        <span class="meet-icon">📹</span> Meet
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const charsRow  = document.getElementById('chars-row');
+    const inviteOverlay = document.getElementById('invite-overlay');
+    const inviteList    = document.getElementById('invite-list');
+    const startBtn      = document.getElementById('start-meeting-btn');
+    const meetBtn       = document.getElementById('meetBtn');
+    const chars = {};
+    const selectedAgents = new Set();
+
+    // ── 설정 버튼 ──
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      window.agent.openSettings();
+    });
+
+    // ── Meet 버튼: 오버레이 토글 ──
+    meetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      inviteOverlay.classList.toggle('open');
+    });
+
+    // ── 바깥 클릭 시 오버레이 닫기 ──
+    document.addEventListener('click', (e) => {
+      if (!inviteOverlay.contains(e.target) && e.target !== meetBtn) {
+        inviteOverlay.classList.remove('open');
+      }
+    });
+
+    // ── Start Meeting ──
+    startBtn.addEventListener('click', () => {
+      if (selectedAgents.size === 0) return;
+      inviteOverlay.classList.remove('open');
+      window.agent.openMeeting([...selectedAgents]);
+    });
+
+    function updateStartBtn() {
+      startBtn.disabled = selectedAgents.size === 0;
+      startBtn.textContent = selectedAgents.size > 0
+        ? `Start Meeting (${selectedAgents.size})`
+        : 'Start Meeting';
+    }
+
+    window.agent.onInit((agents) => {
+      agents.forEach(a => {
+        // ── 초대 항목 ──
+        const item = document.createElement('div');
+        item.className = 'invite-agent';
+        item.dataset.id = a.id;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'invite-avatar';
+        const avatarImg = document.createElement('img');
+        avatarImg.src = a.imagePath;
+        avatarImg.onerror = () => { avatar.textContent = '🤖'; avatar.style.display = 'flex'; avatar.style.alignItems = 'center'; avatar.style.justifyContent = 'center'; };
+        avatar.appendChild(avatarImg);
+
+        const name = document.createElement('div');
+        name.className = 'invite-name';
+        name.textContent = a.name;
+
+        const check = document.createElement('div');
+        check.className = 'invite-check';
+
+        item.append(avatar, name, check);
+        item.addEventListener('click', () => {
+          if (selectedAgents.has(a.id)) {
+            selectedAgents.delete(a.id);
+            item.classList.remove('checked');
+          } else {
+            selectedAgents.add(a.id);
+            item.classList.add('checked');
+          }
+          updateStartBtn();
+        });
+        inviteList.appendChild(item);
+
+        // ── 캐릭터 wrap ──
+        const wrap = document.createElement('div');
+        wrap.className = 'char-wrap';
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tooltip';
+        const tName = document.createElement('div');
+        tName.className = 'tooltip-name';
+        tName.textContent = a.name;
+        const tDesc = document.createElement('div');
+        tDesc.className = 'tooltip-desc';
+        tDesc.textContent = a.description || '';
+        const tStatus = document.createElement('div');
+        tStatus.className = 'tooltip-status';
+        const tDot = document.createElement('div');
+        tDot.className = 'tooltip-dot';
+        const tStatusText = document.createElement('span');
+        tStatusText.textContent = 'Idle';
+        tStatus.append(tDot, tStatusText);
+        tooltip.append(tName, tDesc, tStatus);
+
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+
+        const img = document.createElement('img');
+        img.className = 'char-img';
+        img.src = a.imagePath;
+        img.onerror = () => {
+          img.remove();
+          const emoji = document.createElement('div');
+          emoji.className = 'char-img';
+          emoji.style.cssText = 'display:flex;align-items:flex-end;justify-content:center;font-size:56px;height:100px;width:60px;';
+          emoji.textContent = '🤖';
+          wrap.insertBefore(emoji, dot);
+        };
+
+        const dot = document.createElement('div');
+        dot.className = 'status-dot';
+
+        wrap.append(tooltip, bubble, img, dot);
+        charsRow.appendChild(wrap);
+
+        chars[a.id] = { wrap, img, bubble, dot, tDot, tStatusText, name: a.name };
+
+        let busy = false;
+        wrap.addEventListener('click', () => {
+          if (busy) return;
+          busy = true;
+          dot.classList.add('active');
+          tDot.classList.add('active');
+          tStatusText.textContent = 'Working...';
+          wrap.style.opacity = '0.7';
+          window.agent.trigger(a.id).finally(() => {
+            setTimeout(() => {
+              busy = false;
+              dot.classList.remove('active');
+              tDot.classList.remove('active');
+              tStatusText.textContent = 'Idle';
+              wrap.style.opacity = '1';
+            }, 3000);
+          });
+        });
+      });
+    });
+
+    window.agent.onBriefing(({ agentId, text, audioPath }) => {
+      const c = chars[agentId];
+      if (!c) return;
+
+      c.img.classList.add('speaking');
+      c.bubble.textContent = text;
+      c.bubble.style.display = 'block';
+      c.dot.classList.add('active');
+      if (c.tDot) c.tDot.classList.add('active');
+      if (c.tStatusText) c.tStatusText.textContent = 'Briefing...';
+
+      const audio = new Audio(audioPath);
+      audio.play().catch(() => {});
+
+      audio.onended = () => {
+        c.img.classList.remove('speaking');
+        c.dot.classList.remove('active');
+        if (c.tDot) c.tDot.classList.remove('active');
+        if (c.tStatusText) c.tStatusText.textContent = 'Idle';
+        setTimeout(() => { c.bubble.style.display = 'none'; }, 2500);
+      };
+    });
+  </script>
+</body>
+</html>

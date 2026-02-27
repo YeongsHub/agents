@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: transparent;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-app-region: no-drag;
+    }
+
+    .panel {
+      width: 100%;
+      height: 100%;
+      background: rgba(28, 28, 32, 0.92);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 타이틀 바 */
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px;
+      -webkit-app-region: drag;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+
+    .titlebar h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      letter-spacing: -0.2px;
+    }
+
+    .close-btn {
+      width: 12px; height: 12px;
+      background: #ff5f57;
+      border-radius: 50%;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+      border: none;
+      flex-shrink: 0;
+    }
+    .close-btn:hover { background: #ff3b30; }
+
+    /* 스크롤 영역 */
+    .body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .body::-webkit-scrollbar { width: 4px; }
+    .body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    /* 섹션 */
+    .section {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    /* 입력 필드 */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.65);
+      font-weight: 500;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    textarea {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+      font-family: inherit;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    textarea:focus {
+      border-color: rgba(99,179,237,0.6);
+    }
+
+    textarea {
+      resize: none;
+      height: 72px;
+      line-height: 1.5;
+    }
+
+    /* 하단 버튼 */
+    .footer {
+      padding: 14px 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    button {
+      padding: 7px 18px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+
+    .btn-cancel {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.7);
+    }
+
+    .btn-save {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn-save:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .toast {
+      display: none;
+      position: fixed;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(52,199,89,0.9);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 20px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity:0; transform: translateX(-50%) translateY(6px); }
+      to   { opacity:1; transform: translateX(-50%) translateY(0); }
+    }
+  </style>
+</head>
+<body>
+<div class="panel">
+  <div class="titlebar">
+    <button class="close-btn" onclick="window.agent.closeSettings()"></button>
+    <h1>⚙️ 에이전트 설정</h1>
+    <div style="width:12px"></div>
+  </div>
+
+  <div class="body">
+    <!-- API 키 -->
+    <div class="section">
+      <div class="section-title">API 키</div>
+      <div class="field">
+        <label>OpenAI API Key</label>
+        <input type="password" id="OPENAI_API_KEY" placeholder="sk-proj-..." />
+      </div>
+      <div class="field">
+        <label>ElevenLabs API Key</label>
+        <input type="password" id="ELEVENLABS_API_KEY" placeholder="sk_..." />
+      </div>
+      <div class="field">
+        <label>News API Key</label>
+        <input type="password" id="NEWS_API_KEY" placeholder="..." />
+      </div>
+    </div>
+
+    <!-- Voice ID -->
+    <div class="section">
+      <div class="section-title">캐릭터 Voice ID (ElevenLabs)</div>
+      <div class="field">
+        <label>🐱 냥냥이 Voice ID</label>
+        <input type="text" id="VOICE_CAT" placeholder="ElevenLabs Voice ID" />
+      </div>
+      <div class="field">
+        <label>🦊 폭시 Voice ID</label>
+        <input type="text" id="VOICE_FOX" placeholder="ElevenLabs Voice ID" />
+      </div>
+      <div class="field">
+        <label>🐰 바니 Voice ID</label>
+        <input type="text" id="VOICE_RABBIT" placeholder="ElevenLabs Voice ID" />
+      </div>
+    </div>
+
+    <!-- 사용자 프로필 -->
+    <div class="section">
+      <div class="section-title">사용자 프로필</div>
+      <div class="field">
+        <label>나에 대한 소개 (브리핑 맥락으로 활용)</label>
+        <textarea id="USER_PROFILE" placeholder="직업, 관심사, 목표 등을 자유롭게 입력..."></textarea>
+      </div>
+    </div>
+
+    <!-- 브리핑 스케줄 -->
+    <div class="section">
+      <div class="section-title">브리핑 스케줄</div>
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;">
+        <label style="margin:0">🦊 Foxy <span style="opacity:0.5;font-weight:400">뉴스 앵커</span></label>
+        <input type="time" id="schedule-fox_plan_architect" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
+      </div>
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;">
+        <label style="margin:0">🐱 Kitty <span style="opacity:0.5;font-weight:400">마케팅 전략</span></label>
+        <input type="time" id="schedule-cat_marketer" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
+      </div>
+      <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;">
+        <label style="margin:0">🐰 Bunny <span style="opacity:0.5;font-weight:400">예산 분석</span></label>
+        <input type="time" id="schedule-rabbit_storyteller" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.9);font-size:12px;padding:6px 8px;outline:none;color-scheme:dark;" />
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="btn-cancel" onclick="window.agent.closeSettings()">취소</button>
+    <button class="btn-save" id="saveBtn" onclick="save()">저장</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ 저장됐어요!</div>
+
+<script>
+  const FIELDS = ['OPENAI_API_KEY','ELEVENLABS_API_KEY','NEWS_API_KEY','VOICE_CAT','VOICE_FOX','VOICE_RABBIT','USER_PROFILE'];
+
+  // 현재 값 불러오기
+  window.agent.getSettings().then(settings => {
+    for (const key of FIELDS) {
+      const el = document.getElementById(key);
+      if (el && settings[key]) el.value = settings[key];
+    }
+  });
+
+  async function save() {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = '저장 중...';
+
+    const data = {};
+    for (const key of FIELDS) {
+      const el = document.getElementById(key);
+      if (el) data[key] = el.value.trim();
+    }
+
+    const result = await window.agent.saveSettings(data);
+
+    btn.disabled = false;
+    btn.textContent = '저장';
+
+    if (result.ok) {
+      const toast = document.getElementById('toast');
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 2000);
+    }
+  }
+</script>
+</body>
+</html>
