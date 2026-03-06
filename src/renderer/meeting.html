@@ -576,9 +576,9 @@
       // 이름이 언급된 에이전트만 응답, 없으면 전체 각자 독립 응답
       // STT 오인식 alias 포함 (e.g. Whisper가 "Bunny"→"Bonnie"로 인식하는 경우)
       const ALIASES = {
-        fox_plan_architect:  ["foxy", "fox", "oxy"],
-        cat_marketer:        ["kitty", "cat"],
-        rabbit_storyteller:  ["bunny", "banny", "bonnie", "bonny", "rabbit"],
+        fox_news_anchor:     ["foxy", "fox", "oxy", "boxy"],
+        cat_idea_planner:    ["kitty", "cat", "kiddy"],
+        rabbit_budget_analyst: ["bunny", "banny", "bonnie", "bonny", "rabbit"],
       };
       const targeted = agentOrder.filter(id => {
         const aliases = ALIASES[id] ?? [];
