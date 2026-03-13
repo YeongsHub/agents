@@ -34,7 +34,7 @@ export const AGENTS: AgentConfig[] = [
     voiceId: process.env.VOICE_FOX ?? "",
     videoIdle: "assets/videos/fox_idle.mp4",
     videoSpeak: "assets/videos/fox_speak.mp4",
-    imageIdle: "assets/images/fox_developer.png",
+    imageIdle: "assets/images/foxy_developer-removebg-preview.png",
     scheduleTime: "09:00",
     keywords: [
       "world news problems today",
@@ -63,7 +63,7 @@ export const AGENTS: AgentConfig[] = [
     voiceId: process.env.VOICE_CAT ?? "",
     videoIdle: "assets/videos/cat_idle.mp4",
     videoSpeak: "assets/videos/cat_speak.mp4",
-    imageIdle: "assets/images/cat_marketer.png",
+    imageIdle: "assets/images/kitty_marketer-removebg-preview.png",
     scheduleTime: "11:00",
     keywords: [
       "product Idea strategy",
@@ -88,7 +88,7 @@ export const AGENTS: AgentConfig[] = [
     voiceId: process.env.VOICE_RABBIT ?? "",
     videoIdle: "assets/videos/rabbit_idle.mp4",
     videoSpeak: "assets/videos/rabbit_speak.mp4",
-    imageIdle: "assets/images/rabbit_accountant.png",
+    imageIdle: "assets/images/rabbit_accountant-removebg-preview.png",
     scheduleTime: "14:00",
     keywords: [
       "API pricing 2025",
